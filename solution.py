@@ -1,5 +1,5 @@
-## Student Name:
-## Student ID:
+## Student Name: Dieng Fatoumata
+## Student ID:v 219904564
 
 """
 Task A: Appointment Timeslot Recommender (Stub)
@@ -46,7 +46,7 @@ See the lab handout for full requirements.
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, time
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 
 # ---------------- Data Models ----------------
@@ -55,7 +55,7 @@ from typing import List, Optional, Tuple
 class TimeWindow:
     """
     A daily time window.
-    Assumption (unless stated otherwise in handout): non-wrapping window where start < end.
+    Assumption: non-wrapping window where start < end.
     """
     start: time
     end: time
@@ -85,6 +85,117 @@ class Slot:
 class InfeasibleSchedule(Exception):
     """Raised when no valid slots can be produced (if required by handout)."""
     pass
+
+
+# ---------------- Helper Functions ----------------
+
+def _combine(day: date, t: time) -> datetime:
+    """Combine a date and time into a datetime."""
+    return datetime.combine(day, t)
+
+
+def _validate_time_window(window: TimeWindow, name: str) -> None:
+    """Validate that a time window is non-wrapping and has positive length."""
+    if window.start >= window.end:
+        raise ValueError(f"{name} must satisfy start < end.")
+
+
+def _validate_busy_intervals(busy_intervals: List[BusyInterval]) -> None:
+    """Validate that each busy interval has positive length."""
+    for interval in busy_intervals:
+        if interval.start >= interval.end:
+            raise ValueError("Each busy interval must satisfy start < end.")
+
+
+def _clip_interval(
+    start_dt: datetime,
+    end_dt: datetime,
+    clip_start: datetime,
+    clip_end: datetime
+) -> Optional[tuple[datetime, datetime]]:
+    """
+    Clip an interval to a window.
+    Returns None if there is no overlap.
+    """
+    clipped_start = max(start_dt, clip_start)
+    clipped_end = min(end_dt, clip_end)
+
+    if clipped_start >= clipped_end:
+        return None
+
+    return (clipped_start, clipped_end)
+
+
+def _merge_intervals(
+    intervals: List[tuple[datetime, datetime]]
+) -> List[tuple[datetime, datetime]]:
+    """
+    Merge overlapping or adjacent intervals.
+    Deterministic: sort by start, then end.
+    """
+    if not intervals:
+        return []
+
+    intervals = sorted(intervals, key=lambda pair: (pair[0], pair[1]))
+    merged = [intervals[0]]
+
+    for current_start, current_end in intervals[1:]:
+        last_start, last_end = merged[-1]
+
+        # Merge overlapping or adjacent intervals
+        if current_start <= last_end:
+            merged[-1] = (last_start, max(last_end, current_end))
+        else:
+            merged.append((current_start, current_end))
+
+    return merged
+
+
+def _normalize_busy_intervals(
+    day: date,
+    busy_intervals: List[BusyInterval],
+    search_start: datetime,
+    search_end: datetime
+) -> List[tuple[datetime, datetime]]:
+    """
+    Convert busy intervals to datetimes, clip them to the search window,
+    then merge overlapping/adjacent intervals.
+    """
+    clipped_intervals: List[tuple[datetime, datetime]] = []
+
+    for interval in busy_intervals:
+        start_dt = _combine(day, interval.start)
+        end_dt = _combine(day, interval.end)
+
+        clipped = _clip_interval(start_dt, end_dt, search_start, search_end)
+        if clipped is not None:
+            clipped_intervals.append(clipped)
+
+    return _merge_intervals(clipped_intervals)
+
+
+def _window_intersection(
+    day: date,
+    working_hours: TimeWindow,
+    candidate_window: Optional[TimeWindow]
+) -> tuple[datetime, datetime]:
+    """
+    Compute the effective search window.
+    If candidate_window is provided, intersect it with working_hours.
+    """
+    work_start = _combine(day, working_hours.start)
+    work_end = _combine(day, working_hours.end)
+
+    if candidate_window is None:
+        return work_start, work_end
+
+    candidate_start = _combine(day, candidate_window.start)
+    candidate_end = _combine(day, candidate_window.end)
+
+    effective_start = max(work_start, candidate_start)
+    effective_end = min(work_end, candidate_end)
+
+    return effective_start, effective_end
 
 
 # ---------------- Core Function ----------------
@@ -117,12 +228,59 @@ def suggest_slots(
     Notes:
         - Suggested slots must fall within working_hours (and candidate_window if provided).
         - Suggested slots must not overlap busy_intervals, considering buffer time.
-        - You are free to choose internal representation; inputs use time-of-day.
-        - See lab handout for required slot granularity (e.g., 5-min/15-min steps), if any.
+        - Internal search uses 1-minute granularity.
     """
+    _validate_time_window(working_hours, "working_hours")
 
-    ##################################################################
-    # TODO: Implement as per lab handout requirements and constraints.
-    ##################################################################
-    
-    raise NotImplementedError("suggest_slots has not been implemented yet")
+    if candidate_window is not None:
+        _validate_time_window(candidate_window, "candidate_window")
+
+    _validate_busy_intervals(busy_intervals)
+
+    if duration <= timedelta(0):
+        raise ValueError("duration must be greater than 0.")
+
+    if buffer < timedelta(0):
+        raise ValueError("buffer must be greater than or equal to 0.")
+
+    if n < 0:
+        raise ValueError("n must be greater than or equal to 0.")
+
+    if n == 0:
+        return []
+
+    search_start, search_end = _window_intersection(day, working_hours, candidate_window)
+
+    # No usable search range
+    if search_start >= search_end:
+        return []
+
+    # If duration itself cannot fit, return no slots
+    if search_start + duration > search_end:
+        return []
+
+    normalized_busy = _normalize_busy_intervals(day, busy_intervals, search_start, search_end)
+
+    slots: List[Slot] = []
+    current_start = search_start
+
+    for busy_start, busy_end in normalized_busy:
+        # Latest possible end before this busy interval, respecting buffer
+        free_end = busy_start - buffer
+
+        while current_start + duration <= free_end and len(slots) < n:
+            slots.append(Slot(start_time=current_start.time()))
+            current_start += duration
+
+        # Earliest start after this busy interval, respecting buffer
+        current_start = max(current_start, busy_end + buffer)
+
+        if len(slots) >= n:
+            return slots
+
+    # Handle free time after the last busy interval
+    while current_start + duration <= search_end and len(slots) < n:
+        slots.append(Slot(start_time=current_start.time()))
+        current_start += duration
+
+    return slots
