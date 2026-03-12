@@ -1,0 +1,234 @@
+## 1. Problem Understanding
+
+System purpose:
+The system recommends available appointment slots to a given day within defined working hours while considering busy intervals, meeting duration, optional buffer time, and an optional candidate time window.
+
+Inputs to the system:
+- day: the calendar date for which appointment slots are generated
+- working_hours: a time window defining the allowed scheduling range
+- busy_intervals: a list of time intervals during which scheduling is not allowed
+- duration: the required meeting duration
+- n: the maximum number of appointment suggestions to return
+- buffer: optional minimum buffer time required between meetings
+- candidate_window: optional additional time window restricting where suggestions may appear
+
+Outputs produced by the system:
+- a list of recommended appointment slot start times in chronological order
+- an empty list if no valid slot exists
+- an explicit error for invalid input values
+
+Primary goal of the system:
+The primary goal of the system is to generate deterministic, valid, and concise appointment suggestions that satisfy scheduling constraints and support the needs of both personas, especially reliability, predictability, and explicit handling of edge cases.
+
+-----------------------------------------------
+
+## 2. Assumptions
+
+A1:
+All time windows are non-wrapping within a single day, so each start time must be earlier than its end time.
+
+A2:
+Busy intervals are provided for the same calendar day as the requested scheduling day.
+
+A3:
+Meeting duration must be greater than zero.
+
+A4:
+Buffer time must be greater than or equal to zero.
+
+A5:
+If candidate_window is provided, it is interpreted as an additional restriction inside the working day.
+
+A6:
+The system uses deterministic chronological ordering and does not use randomness.
+
+A7:
+If no valid appointment slot exists, the system returns an empty list rather than generating an invalid slot.
+
+A8:
+Invalid inputs are rejected explicitly using errors rather than being ignored silently.
+
+--------------------------------------------------------------------------------------------------
+
+## 3. Functional Requirements
+
+FR1:
+The system shall accept a day, working hours, busy intervals, meeting duration, n, optional buffer, and optional candidate window as input.
+
+FR2:
+The system shall normalize unsorted, overlapping, or adjacent busy intervals before computing appointment availability.
+
+FR3:
+The system shall generate only appointment slots that fit fully within the allowed scheduling window.
+
+FR4:
+The system shall exclude slots that overlap with busy intervals or violate buffer constraints.
+
+FR5:
+The system shall return appointment slots in deterministic chronological order.
+
+FR6:
+The system shall return at most n valid appointment suggestions.
+
+FR7:
+The system shall return an empty list when no valid appointment slot exists.
+
+FR8:
+The system shall explicitly reject invalid input parameters.
+
+--------------------------------------------------------------------------------------------------------------
+
+## 4. System Constraints
+
+C1:
+The system must return appointment suggestions in deterministic chronological order.
+Derived from persona attribute:
+Jane – predictable and stable ordering of system decisions.
+
+C2:
+The system must automatically exclude slots that conflict with busy intervals or violate buffer constraints.
+Derived from persona attribute:
+Jane – trusts the system to resolve conflicts and enforce rules automatically.
+
+C3:
+The system must return at most n valid appointment suggestions and must not return duplicate suggestions.
+Derived from persona attribute:
+Jane – prefers concise outputs and minimal interaction.
+
+C4:
+The system must produce identical results for repeated executions with identical inputs.
+Derived from persona attribute:
+Jane – pain point: systems behave inconsistently in similar situations.
+
+C5:
+When multiple valid slots exist, the system must prioritize earlier start times as the tie-breaking rule.
+Derived from persona attribute:
+Mo – deterministic system behavior under ties or conflicting conditions.
+
+C6:
+The system must explicitly handle edge cases such as overlapping intervals, adjacent intervals, and schedules with no available slots.
+Derived from persona attribute:
+Mo – explicit handling of edge cases instead of silent failure.
+
+C7:
+The system must reject invalid inputs such as invalid working hours, non-positive duration, or negative buffer values.
+Derived from persona attribute:
+Mo – pain point: silent failures or dropped requests.
+
+C8:
+The system must return an empty list for infeasible but valid schedules rather than producing invalid output.
+Derived from persona attribute:
+Mo – pain point: not understanding why the system changed or rejected an action.
+
+---------------------------------------------------------------------------------------------------------------
+
+## 5. Acceptance Criteria
+
+AC1:
+Given valid working hours and busy intervals
+When the system generates appointment slots
+Then all returned slots must fall within the allowed scheduling window.
+Linked Constraint ID(s): C1, C5
+
+AC2:
+Given overlapping, adjacent, or unsorted busy intervals
+When the system evaluates availability
+Then the intervals must be normalized before slot generation.
+Linked Constraint ID(s): C2, C6
+
+AC3:
+Given busy intervals and a buffer time
+When the system generates appointment slots
+Then no returned slot may overlap a busy interval or violate the required buffer.
+Linked Constraint ID(s): C2
+
+AC4:
+Given repeated executions with identical inputs
+When the system generates suggestions
+Then the output must be identical across runs.
+Linked Constraint ID(s): C1, C4
+
+AC5:
+Given more valid slots than requested
+When the system returns suggestions
+Then the output must contain at most n unique slots.
+Linked Constraint ID(s): C3
+
+AC6:
+Given invalid input parameters
+When the system is called
+Then it must raise an explicit error instead of failing silently.
+Linked Constraint ID(s): C7
+
+AC7:
+Given a schedule with no valid appointment slot
+When the system evaluates availability
+Then it must return an empty list.
+Linked Constraint ID(s): C6, C8
+
+AC8:
+Given multiple valid slot candidates
+When the system orders the results
+Then the earlier start times must appear before later ones.
+Linked Constraint ID(s): C5
+
+---------------------------------------------------------------------------------
+
+## 6. Edge Cases
+
+EC1:
+Overlapping busy intervals
+Expected system behavior:
+The system must merge overlapping intervals before computing availability.
+
+EC2:
+Adjacent busy intervals
+Expected system behavior:
+The system must treat adjacent intervals as a continuous blocked period.
+
+EC3:
+Unsorted busy intervals
+Expected system behavior:
+The system must sort and normalize intervals before slot generation.
+
+EC4:
+Meeting duration longer than any available gap
+Expected system behavior:
+The system must return an empty list.
+
+EC5:
+Negative buffer value
+Expected system behavior:
+The system must raise an explicit error.
+
+EC6:
+Working hours where start time is not earlier than end time
+Expected system behavior:
+The system must raise an explicit error.
+
+EC7:
+No busy intervals in the working day
+Expected system behavior:
+The system must treat the working window as fully available.
+
+EC8:
+n equals zero
+Expected system behavior:
+The system must return an empty list.
+
+---------------------------------------------
+
+## 7. Traceability
+
+FR1 -> C7 -> AC6
+FR2 -> C2, C6 -> AC2
+FR3 -> C1, C5 -> AC1, AC8
+FR4 -> C2 -> AC3
+FR5 -> C1, C4, C5 -> AC4, AC8
+FR6 -> C3 -> AC5
+FR7 -> C6, C8 -> AC7
+FR8 -> C7 -> AC6
+
+---
+
+## Revision Notes
