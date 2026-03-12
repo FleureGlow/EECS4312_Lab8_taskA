@@ -1,0 +1,2 @@
+No LLM assistance was used during the interpretation of personas or the derivation of constraints.
+All constraints in the persona–constraint table were derived manually based on the personas described in the lab manual.
