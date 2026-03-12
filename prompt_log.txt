@@ -1,142 +1,105 @@
 ## Student Name: Dieng Fatoumata
 ## Student ID: 219904564
 
-Prompt 1
-Purpose:
-Identify ambiguities, missing clarifications, and underspecified behaviours before requesting code generation.
+Prompt 1:
+I am implementing an Appointment Slot Recommender in Python.
 
-Full Prompt:
+System description:
+The system recommends available appointment slots for a given day within defined working hours while considering existing busy intervals, required meeting duration, optional buffer time, and an optional candidate time window. The system returns a deterministic list of valid appointment slot start times in chronological order. If no valid slot exists, it should return an empty list. Invalid inputs should be rejected explicitly.
 
-I am implementing a Python module called solution.py for an Appointment Slot Recommender.
+Personas:
 
-Problem Summary:
-The system suggests available meeting appointment slots within specified working hours while considering existing busy intervals, meeting duration, and buffer time. The system returns the next n valid appointment slots in chronological order that satisfy all constraints.
+Persona 1 – Jane Adams (Primary User)
+Jane is a busy professional who relies on automation to reduce cognitive load. She expects the system to work reliably without manual oversight. She acts quickly, rarely revisits system suggestions, and prefers concise outputs and minimal interaction. She needs predictable ordering, automatic conflict handling, and limited output overload. Her pain points are duplicate or excessive system messages, inconsistent behavior, and having to manually check system correctness.
 
-Functional Requirements:
-1. The system shall accept working start and end times.
-2. The system shall accept a list of busy intervals.
-3. The system shall accept a required meeting duration.
-4. The system shall accept buffer time between meetings.
-5. The system shall determine available gaps between busy intervals within working hours.
-6. The system shall normalize busy intervals by sorting and merging overlapping intervals.
-7. The system shall ensure suggested slots do not overlap busy intervals.
-8. The system shall return at most n suggestions.
-9. The system shall return an empty list when no valid slots exist.
-10. The system shall return results in chronological order.
+Persona 2 – Mo Rodriguez (Edge User)
+Mo is a user with accessibility needs and heightened sensitivity to uncertainty. Mo carefully reviews outputs and seeks explanations for system decisions. Mo performs frequent updates and experiences stress when outcomes appear arbitrary or unexplained. Mo needs deterministic behavior under ties, explicit handling of edge cases, and no silent failures. Pain points include unclear rejection of actions, silent failures, and inconsistent behavior across repeated or boundary scenarios.
 
-Constraints:
-C1. Working start time must be earlier than working end time.
-C2. Meeting duration must be greater than 0 minutes.
-C3. Buffer time must be greater than or equal to 0 minutes.
-C4. Busy intervals may be unsorted or overlapping and must be normalized before evaluating availability.
-C5. Suggested appointment slots must not overlap any busy interval.
-C6. Suggested slots must fall within working hours.
+Persona-derived constraints:
 
-Acceptance Criteria:
+C1: The system must return appointment suggestions in deterministic chronological order.
+Derived from: Jane – predictable and stable ordering of system decisions.
+
+C2: The system must automatically exclude slots that conflict with busy intervals or violate buffer constraints.
+Derived from: Jane – trusts the system to resolve conflicts automatically.
+
+C3: The system must return at most n valid appointment suggestions and must not return duplicate suggestions.
+Derived from: Jane – prefers concise outputs and minimal interaction.
+
+C4: The system must produce identical results for repeated executions with identical inputs.
+Derived from: Jane – systems behave inconsistently in similar situations.
+
+C5: When multiple valid slots exist, the system must prioritize earlier start times as the tie-breaking rule.
+Derived from: Mo – deterministic behavior under ties or conflicting conditions.
+
+C6: The system must explicitly handle edge cases such as overlapping intervals, adjacent intervals, and schedules with no available slots.
+Derived from: Mo – explicit handling of edge cases instead of silent failure.
+
+C7: The system must reject invalid inputs such as invalid working hours, non-positive duration, or negative buffer values.
+Derived from: Mo – pain point: silent failures or dropped requests.
+
+C8: The system must return an empty list for infeasible but valid schedules rather than producing invalid output.
+Derived from: Mo – pain point: unclear or inconsistent outcomes.
+
+Acceptance criteria:
 
 AC1:
 Given valid working hours and busy intervals
-When the system calculates available slots
-Then all returned slots must fall within the working hours.
-Linked Constraint ID(s): C6
+When the system generates appointment slots
+Then all returned slots must fall within the allowed scheduling window.
+Linked constraints: C1, C5
 
 AC2:
-Given overlapping or unsorted busy intervals
-When the system processes them
-Then the system must normalize the intervals before computing availability.
-Linked Constraint ID(s): C4
+Given overlapping, adjacent, or unsorted busy intervals
+When the system evaluates availability
+Then the intervals must be normalized before slot generation.
+Linked constraints: C2, C6
 
 AC3:
-Given busy intervals
-When appointment slots are generated
-Then no returned slots may overlap with any busy interval.
-Linked Constraint ID(s): C5
+Given busy intervals and a buffer time
+When the system generates appointment slots
+Then no returned slot may overlap a busy interval or violate the required buffer.
+Linked constraints: C2
 
 AC4:
-Given working start time and working end time, where the start time occurs before the end time
-When the system receives the input parameters
-Then the system must accept the working hours as valid and proceed with slot computation.
-Linked Constraint ID(s): C1
+Given repeated executions with identical inputs
+When the system generates suggestions
+Then the output must be identical across runs.
+Linked constraints: C1, C4
 
 AC5:
-Given a meeting duration input
-When the system receives the meeting duration parameter
-Then the system must only accept the input if the meeting duration is greater than 0 minutes.
-Linked Constraint ID(s): C2
+Given more valid slots than requested
+When the system returns suggestions
+Then the output must contain at most n unique slots.
+Linked constraints: C3
 
 AC6:
-Given a buffer time parameter
-When the system receives the buffer input
-Then the system must ensure the buffer time is greater than or equal to 0 minutes before evaluating availability.
-Linked Constraint ID(s): C3
+Given invalid input parameters
+When the system is called
+Then it must raise an explicit error instead of failing silently.
+Linked constraints: C7
 
-Additional Input/Output Details:
-- working_start_time: string in 24-hour "HH:MM" format
-- working_end_time: string in 24-hour "HH:MM" format
-- busy_intervals: list of tuples in the form [("HH:MM", "HH:MM"), ...]
-- meeting_duration: integer in minutes
-- buffer_time: integer in minutes
-- n: integer number of suggestions to return
-- output: a list of appointment slots in the form [("HH:MM", "HH:MM"), ...]
+AC7:
+Given a schedule with no valid appointment slot
+When the system evaluates availability
+Then it must return an empty list.
+Linked constraints: C6, C8
 
-Before generating any code, please identify:
-1. Any ambiguities in these requirements
-2. Any missing clarifications
-3. Any underspecified behaviors
-4. Any assumptions that should be explicitly decided before implementation
+AC8:
+Given multiple valid slot candidates
+When the system orders the results
+Then the earlier start times must appear before later ones.
+Linked constraints: C5
 
-Response Summary:
-The model identified possible ambiguities regarding how buffer time should be applied, how adjacent busy intervals should be handled, whether invalid inputs should raise errors, and whether returned slots should represent full free intervals or fixed-duration meeting slots.
+Please review this specification before any code is generated and identify:
+1. Missing constraints
+2. Ambiguous requirements
+3. Unhandled edge cases
+4. Any assumptions that should be explicitly clarified before implementation
+Do not generate code yet.
 
-Decision:
-Accepted the suggestions. Clarified that adjacent busy intervals should be merged, returned slots should be fixed-duration meeting slots, and invalid inputs should raise a ValueError.
-
----------------------------------------------------------------------------------------------------------------------------------------------------------
-
-Prompt 2
-Purpose:
-Generate the initial implementation of solution.py based on the finalized requirements and assumptions.
-
-Full Prompt:
-
-Using the finalized requirements and assumptions below, implement solution.py in Python.
-
-Assumptions chosen for implementation:
-1. Times are provided in "HH:MM" 24-hour format.
-2. Busy intervals may be unsorted or overlapping and must be normalized by sorting and merging.
-3. Adjacent busy intervals should also be merged.
-4. Buffer time must be respected when evaluating whether a slot is available.
-5. Returned appointment slots must be fixed-duration slots equal to the required meeting duration.
-6. The function should return the earliest valid slots first, in chronological order.
-7. The function should return at most n slots.
-8. If no valid slots exist, the function should return an empty list [].
-9. Invalid inputs for working hours, meeting duration, or buffer time should raise ValueError.
-
-Required behavior:
-- Accept working start time and working end time
-- Accept busy intervals
-- Accept meeting duration
-- Accept buffer time
-- Normalize busy intervals
-- Compute available gaps within working hours
-- Ensure suggested slots do not overlap busy intervals
-- Ensure suggested slots stay within working hours
-- Return results in chronological order
-- Return at most n suggestions
-
-Please implement clean, readable Python code in solution.py.
-
-Use helper functions for:
-- parsing time strings
-- formatting time strings
-- normalizing busy intervals
-- generating appointment slots
-
-Function signature:
-suggest_slots(working_start_time, working_end_time, busy_intervals, meeting_duration, buffer_time, n)
-
-Response Summary:
-The model generated a Python implementation with helper functions for parsing time, formatting time, normalizing busy intervals, and generating valid appointment slots.
+Response summary:
+The response reviewed the specification and identified possible ambiguities in slot granularity, candidate window behavior, and whether no-availability cases should include an explanation in addition to returning an empty list.
 
 Decision:
-Accepted as the initial implementation and prepared for testing.
+Accepted with modifications.
